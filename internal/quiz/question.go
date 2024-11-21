@@ -35,29 +35,19 @@ type NewQuestion struct {
 
 func (dr *DatabaseRepository) CreateQuestion(ctx context.Context, question NewQuestion, quizID string, orderNumber int) error {
 	sql := `
-	INSERT INTO quiz_questions (quiz_question_id, content, variant, points, order_number, duration, quiz_id)
+	INSERT INTO quiz_questions (quiz_question_id, content, variant, points, order_number, quiz_id)
 	VALUES 
-		($1, $2, $3, $4, $5, 
-			CASE WHEN $6 IS NOT NULL
-			THEN make_interval(secs => $6)
-			ELSE NULL
-			END
-		$7)
+		($1, $2, $3, $4, $5, $6)
 	ON CONFLICT(quiz_question_id)
 	DO UPDATE SET
 		content = ($2),
 		variant = ($3),
 		points = ($4),
-		order_number = ($5),
-		duration = 
-			CASE WHEN $6 IS NOT NULL
-			THEN make_interval(secs => $6)
-			ELSE NULL
-			END
+		order_number = ($5)
 	RETURNING quiz_question_id
 	`
 
-	row := dr.Querier.QueryRow(ctx, sql, question.QuizQuestionID, question.Content, question.Variant, question.Points, orderNumber, question.Duration, quizID)
+	row := dr.Querier.QueryRow(ctx, sql, question.QuizQuestionID, question.Content, question.Variant, question.Points, orderNumber, quizID)
 
 	var questionID string
 
@@ -88,7 +78,6 @@ func (dr *DatabaseRepository) GetCurrentQuestion(ctx context.Context, quizID str
 			'variant', quiz_questions.variant,
 			'points', quiz_questions.points,
 			'order_number', quiz_questions.order_number,
-			'duration', EXTRACT(epoch FROM quiz_questions.duration)::INT,
 			'answers', (
 				SELECT jsonb_agg(
 					jsonb_build_object(
