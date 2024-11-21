@@ -25,6 +25,8 @@ type Repository interface {
 	GetUser(ctx context.Context, userID string) (User, error)
 	GetAllUsers(ctx context.Context, quizID string) ([]User, error)
 	GetWrittenAnswer(ctx context.Context, quizID string, userID string) (GetWrittenAnswerResponse, error)
+	SetQuizFreezed(ctx context.Context, quizID string, frozen bool) error
+	GetQuizFreezedState(ctx context.Context, quizID string) (bool, error)
 }
 
 type DatabaseRepository struct {

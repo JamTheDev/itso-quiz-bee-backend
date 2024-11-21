@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/rs/zerolog/log"
 	"github.com/xGihyun/itso-quiz-bee/internal/api"
 )
 
@@ -132,6 +133,86 @@ func (qs *Service) CreateSelectedAnswer(w http.ResponseWriter, r *http.Request) 
 	}
 
 	return api.Response{StatusCode: http.StatusCreated, Status: api.Success}
+}
+
+func (qs *Service) SetQuizFreezed(w http.ResponseWriter, r *http.Request) api.Response {
+	ctx := r.Context()
+
+	quizID := r.PathValue("quiz_id")
+
+	var request struct {
+		Freezed bool `json:"freezed"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		log.Error().Msg(("Failed to parse request body"))
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return api.Response{
+			StatusCode: http.StatusBadRequest,
+			Message:    "Invalid request payload",
+		}
+	}
+
+	if quizID == "" {
+		log.Warn().Msg("Quiz ID is missing in the request")
+		http.Error(w, "Quiz ID is required", http.StatusBadRequest)
+		return api.Response{
+			StatusCode: http.StatusBadRequest,
+			Message:    "Quiz ID is required",
+		}
+	}
+
+	err := qs.repo.SetQuizFreezed(ctx, quizID, request.Freezed)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to freeze the quiz")
+		http.Error(w, "Failed to freeze the quiz", http.StatusInternalServerError)
+		return api.Response{
+			StatusCode: http.StatusInternalServerError,
+			Message:    "Failed to freeze the quiz",
+		}
+	}
+
+	return api.Response{
+		StatusCode: http.StatusOK,
+		Message:    "Quiz successfully frozen",
+		Data: map[string]string{
+			"quiz_id": quizID,
+		},
+	}
+}
+
+func (qs *Service) GetQuizFrozenState(w http.ResponseWriter, r *http.Request) api.Response {
+	ctx := r.Context()
+
+	quizID := r.PathValue("quiz_id")
+
+	if quizID == "" {
+		log.Warn().Msg("Quiz ID is missing in the request")
+		http.Error(w, "Quiz ID is required", http.StatusBadRequest)
+		return api.Response{
+			StatusCode: http.StatusBadRequest,
+			Message:    "Quiz ID is required",
+		}
+	}
+
+	isFreezed, err := qs.repo.GetQuizFreezedState(ctx, quizID)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to retrieve quiz freeze state")
+		http.Error(w, "Failed to retrieve quiz freeze state", http.StatusInternalServerError)
+		return api.Response{
+			StatusCode: http.StatusInternalServerError,
+			Message:    "Failed to retrieve quiz freeze state",
+		}
+	}
+
+	return api.Response{
+		StatusCode: http.StatusOK,
+		Message:    "Quiz freeze state retrieved successfully",
+		Data: map[string]interface{}{
+			"quiz_id": quizID,
+			"freezed": isFreezed,
+		},
+	}
 }
 
 func (qs *Service) CreateWrittenAnswer(w http.ResponseWriter, r *http.Request) api.Response {

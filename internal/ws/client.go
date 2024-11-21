@@ -13,7 +13,7 @@ import (
 type Event string
 
 const (
-	QuizUpdateStatus     Event = "quiz-update-status"
+	QuizUpdateStatus Event = "quiz-update-status"
 	// QuizStart            Event = "quiz-start"
 	// QuizPause            Event = "quiz-pause"
 	// QuizResume           Event = "quiz-resume"
@@ -23,6 +23,7 @@ const (
 	QuizSelectAnswer     Event = "quiz-select-answer"
 	QuizTypeAnswer       Event = "quiz-type-answer"
 	QuizDisableAnswering Event = "quiz-disable-answering"
+	QuizFreezeSubmit     Event = "quiz-freeze-submit"
 
 	QuizStartTimer Event = "quiz-start-timer"
 	QuizTimerPass  Event = "quiz-timer-pass"
@@ -36,6 +37,15 @@ type Request struct {
 	Event  Event           `json:"event"`
 	Data   json.RawMessage `json:"data"`
 	UserID string          `json:"user_id"`
+}
+
+type QuizFreezeSubmitRequest struct {
+	QuizID  string `json:"quiz_id"`
+	Freezed bool   `json:"freezed"`
+}
+
+type QuizUnfreezeSubmitRequest struct {
+	QuizID string `json:"quiz_id"`
 }
 
 type Client struct {
@@ -244,6 +254,22 @@ func (c *Client) Read() {
 
 		case Heartbeat:
 			log.Info().Msg("Heartbeat!")
+			break
+
+		case QuizFreezeSubmit:
+			var data QuizFreezeSubmitRequest
+
+			if err := json.Unmarshal(request.Data, &data); err != nil {
+				log.Error().Err(err).Send()
+				return
+			}
+
+			err := quizRepo.SetQuizFreezed(ctx, data.QuizID, data.Freezed)
+			if err != nil {
+				log.Error().Err(err).Send()
+			}
+
+			log.Info().Msg(fmt.Sprintf("Freezing submit button for quiz: %s", data.QuizID))
 			break
 
 		default:

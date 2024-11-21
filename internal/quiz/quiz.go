@@ -2,6 +2,7 @@ package quiz
 
 import (
 	"context"
+	"log"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
@@ -57,6 +58,38 @@ func (dr *DatabaseRepository) Create(ctx context.Context, data NewQuizRequest) e
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func (dr *DatabaseRepository) SetQuizFreezed(ctx context.Context, quizID string, frozen bool) error {
+	sql := `
+        UPDATE quizzes
+        SET is_frozen = $1
+        WHERE quiz_id = $2
+        RETURNING quiz_id;
+    `
+
+	// Use TRUE/FALSE for boolean values
+	var frozenValue bool
+	frozenValue = frozen
+
+	// Perform the query
+	var returnedQuizID string
+	err := dr.Querier.QueryRow(ctx, sql, frozenValue, quizID).Scan(&returnedQuizID)
+	if err != nil {
+		log.Default().Fatalf("failed to freeze quiz: %w", err)
+		return err
+	}
+
+	// Log success
+	log.Default().Printf("Quiz %s has been %s.", returnedQuizID, func() string {
+		if frozen {
+			return "frozen"
+		} else {
+			return "unfrozen"
+		}
+	}())
 
 	return nil
 }
@@ -120,12 +153,21 @@ func (dr *DatabaseRepository) GetByID(ctx context.Context, quizID string) (QuizR
 	return quiz, nil
 }
 
+func (r *DatabaseRepository) GetQuizFreezedState(ctx context.Context, quizID string) (bool, error) {
+	var freezed bool
+	err := r.Querier.QueryRow(ctx, "SELECT is_frozen FROM quizzes WHERE quiz_id = $1", quizID).Scan(&freezed)
+	if err != nil {
+		return false, err
+	}
+	return freezed, nil
+}
+
 type BasicInfo struct {
-	QuizID      string         `json:"quiz_id"`
-	Name        string         `json:"name"`
-	Description *string        `json:"description"`
-	Status      Status         `json:"status"`
-	LobbyID     *string        `json:"lobby_id"`
+	QuizID      string  `json:"quiz_id"`
+	Name        string  `json:"name"`
+	Description *string `json:"description"`
+	Status      Status  `json:"status"`
+	LobbyID     *string `json:"lobby_id"`
 }
 
 func (dr *DatabaseRepository) GetAll(ctx context.Context) ([]BasicInfo, error) {

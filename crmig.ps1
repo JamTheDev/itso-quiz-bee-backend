@@ -1,1 +1,1 @@
-goose -dir ./internal/database/migrations/ postgres postgresql://postgresn:HelloWorld123@0.0.0.0:5432/itso-quiz-bee create
+goose -dir ./internal/database/migrations/ postgres postgresql://itsomanagement:ITSOManagement2024@0.0.0.0:5432/itsoquizbee create
